@@ -1,0 +1,65 @@
+---
+title: "CodeBook"
+author: "MJV"
+date: "2023-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Original Data
+
+The original data was obtained from: <https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip>.
+
+The data provided are for the accelerometer and gyroscope readings obtained from 30 subjects performing 6 different activities.  In the original data, the subjects are divided between a training group and test group.  The files are:
+
+*type* = "test" or "train"
+
+subject_*type*.txt: File containing the subject being measured in each row of the data
+
+y_*type*.txt: The activity being performed in each row of the data
+
+X_*type*.txt: 561 values derived from the accelerometer and gyroscope measurements corresponding to the subject and activity being performed in each row
+
+Information on the activities being performed is found in the "activity_labels.txt" file in the main directory.
+
+Variable name information is provided in "features.txt" and the meaning of the variable names is provided in "features_info.txt"
+
+## Data Analysis
+```{r, include=FALSE}
+sys.source("run_analysis.R",envir = knitr::knit_global())
+```
+The test and training data are read into R and the "features.txt" is used to determine which variables are the mean and standard deviation values and only those are retained from the original data, reducing the original 561 variables to 81.  
+
+```{r,eval=FALSE,echo=TRUE}
+idx <- grepl("mean|std",features[,2])
+Xtest <- Xtest[,idx]
+Xtrain <- Xtrain[,idx]
+```
+
+Further more the variable names are simplified by eliminating dashes, "-" and parenthesis "()" and converting to all lower case.
+```{r,eval=FALSE,echo=TRUE}
+names(Xtest) <- gsub("(-|[()])","",tolower(features[idx,2]))
+names(Xtrain) <- gsub("(-|[()])","",tolower(features[idx,2]))
+```
+
+The "activity_labels.txt" file is used to convert the integer values (1-6) specifying the activity being performed to a descriptive text name.
+```{r,eval=FALSE,echo=TRUE}
+AllData$Activity <- actLabels$V2[AllData$Activity]
+```
+Since there are multiple rows containing a given subject performing a given activity (e.g., Subject #5 Walking Upstairs), a more compact representation is to provide the average for each variable for a given subject/activity combination.  This is done using the melt and dcast functions:
+
+```{r,eval=FALSE,echo=TRUE}
+meltAllData <- melt(AllData,id.vars = c("Subject","Activity"))
+SummData <- dcast(meltAllData,Subject + Activity~variable,mean)
+```
+
+As an example, the mean body accelration data for subject 5 performing all 6 activities can be extracted from the summary data
+```{r,echo=TRUE}
+select(SummData[SummData$Subject == 5,],Subject:tbodyaccmeanz)
+```
+
+## Outputs
+The combined test and training data with modified variable names and descriptive activity names is provided in the "DataSet.csv" file while the corresponding data giving the mean data for a given subject/activity combination is in "SummaryDataSet.csv"
